@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Management Console</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        :root {
+            --bg-main: #121214;
+            --bg-surface: #1e1e22;
+            --bg-input: #2a2a30;
+            --text-main: #ededed;
+            --text-muted: #9ca3af;
+            --accent-supabase: #3ecf8e;
+            --accent-firebase: #f5820d;
+            --border-color: #2e2e33;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        header {
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: -0.025em;
+        }
+
+        h1 span.supa { color: var(--accent-supabase); }
+        h1 span.fire { color: var(--accent-firebase); }
+
+        .control-panel {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        label {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        select {
+            background-color: var(--bg-input);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        select:focus {
+            border-color: var(--accent-supabase);
+        }
+
+        .table-container {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.95rem;
+        }
+
+        th {
+            background-color: #17171a;
+            color: var(--text-muted);
+            font-weight: 500;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border-color);
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+        }
+
+        td {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .status-message {
+            padding: 40px;
+            text-align: center;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .error {
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1><span class="supa">Supabase</span> × <span class="fire">Firebase</span> Console</h1>
+        <div class="control-panel">
+            <label for="view-selector">Select Database View:</label>
+            <select id="view-selector" onchange="changeView(this.value)">
+                <option value="inventory">Inventory Management</option>
+                <option value="sales">Sales Transactions</option>
+                <option value="client">Client Profiles</option>
+            </select>
+        </div>
+    </header>
+
+    <main class="table-container">
+        <div id="status" class="status-message">Loading dashboard metrics...</div>
+        <table id="data-table" style="display: none;">
+            <thead id="table-head">
+            </thead>
+            <tbody id="table-body">
+            </tbody>
+        </table>
+    </main>
+</div>
+
+<script>
+    // 2. Add your direct Supabase API keys here
+    // (Settings -> API in your Supabase Dashboard)
+    const SUPABASE_URL = 'https://kampvpuyyqaxpyivzgnm.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthbXB2cHV5eXFheHB5aXZ6Z25tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NzEzMzYsImV4cCI6MjA5NjI0NzMzNn0.p3kYjoaAuBz9WCgOjf3EJTH_S2qJXxZasyrLnqjQxtw';
+
+    // 3. Initialize the Supabase Client globally using the capitalized library name
+    const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // 4. This function queries your database directly from the browser based on the selection
+    async function changeView(viewName) {
+        const statusDiv = document.getElementById('status');
+        const tableElement = document.getElementById('data-table');
+        const tableHead = document.getElementById('table-head');
+        const tableBody = document.getElementById('table-body');
+
+        // Reset current view state
+        statusDiv.style.display = 'block';
+        statusDiv.className = 'status-message';
+        statusDiv.innerText = `Connecting directly to Supabase table: [${viewName}]...`;
+        tableElement.style.display = 'none';
+        tableHead.innerHTML = '';
+        tableBody.innerHTML = '';
+
+        try {
+            // Regular JavaScript requests data directly from your custom table names
+            const { data, error } = await supabase
+                .from(viewName)
+                .select('*');
+
+            if (error) throw error;
+
+            if (!data || data.length === 0) {
+                statusDiv.innerText = `The table "${viewName}" is currently empty or has no rows.`;
+                return;
+            }
+
+            // Show table, hide status loader
+            statusDiv.style.display = 'none';
+            tableElement.style.display = 'table';
+
+            // Grab column headers automatically from the keys of the first item
+            const columns = Object.keys(data[0]);
+            const headerRow = document.createElement('tr');
+            columns.forEach(col => {
+                const th = document.createElement('th');
+                th.innerText = col.replace('_', ' '); // Cleans up "product_name" to "product name"
+                headerRow.appendChild(th);
+            });
+            tableHead.appendChild(headerRow);
+
+            // Dynamically build data rows
+            data.forEach(rowRecord => {
+                const tr = document.createElement('tr');
+                columns.forEach(col => {
+                    const td = document.createElement('td');
+                    td.innerText = rowRecord[col] !== null ? rowRecord[col] : '—';
+                    tr.appendChild(td);
+                });
+                tableBody.appendChild(tr);
+            });
+
+        } catch (err) {
+            statusDiv.className = 'status-message error';
+            statusDiv.innerText = `Direct Database Error: ${err.message}`;
+            console.error(err);
+        }
+    }
+
+    // Run automatically on startup
+    window.onload = () => {
+        changeView('inventory');
+    };
+</script>
+</body>
+</html>
