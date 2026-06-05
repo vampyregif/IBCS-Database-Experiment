@@ -163,17 +163,9 @@
 
 <script>
     const SUPABASE_URL = 'https://kampvpuyyqaxpyivzgnm.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthbXB2cHV5eXFheHB5aXZ6Z25tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NzEzMzYsImV4cCI6MjA5NjI0NzMzNn0.p3kYjoaAuBz9WCgOjf3EJTH_S2qJXxZasyrLnqjQxtw';
+    const SUPABASE_ANON_KEY = 'sb_publishable_FnKHt47i-WKaAKFjFC7nTQ_AGbGAU-1';
 
-    let supabase;
-
-    // Safety check to ensure the library loaded correctly before we run anything
-    try {
-        supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    } catch (e) {
-        document.getElementById('status').className = 'status-message error';
-        document.getElementById('status').innerText = "Failed to load Supabase SDK script. Check your internet connection or script tags.";
-    }
+    const db = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     async function changeView(viewName) {
         const statusDiv = document.getElementById('status');
@@ -189,7 +181,8 @@
         tableBody.innerHTML = '';
 
         try {
-            const { data, error } = await supabase
+            // 2. Change 'supabase.from' to 'db.from' here
+            const { data, error } = await db
                 .from(viewName)
                 .select('*');
 
@@ -233,6 +226,7 @@
     window.addEventListener('DOMContentLoaded', () => {
         changeView('inventory');
     });
+</script>
 </script>
 </body>
 </html>
