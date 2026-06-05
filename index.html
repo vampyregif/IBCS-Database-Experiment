@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Database Management Console</title>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -132,6 +133,7 @@
 
         .error {
             color: #ef4444;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -153,31 +155,32 @@
     <main class="table-container">
         <div id="status" class="status-message">Loading dashboard metrics...</div>
         <table id="data-table" style="display: none;">
-            <thead id="table-head">
-            </thead>
-            <tbody id="table-body">
-            </tbody>
+            <thead id="table-head"></thead>
+            <tbody id="table-body"></tbody>
         </table>
     </main>
 </div>
 
 <script>
-    // 2. Add your direct Supabase API keys here
-    // (Settings -> API in your Supabase Dashboard)
     const SUPABASE_URL = 'https://kampvpuyyqaxpyivzgnm.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthbXB2cHV5eXFheHB5aXZ6Z25tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NzEzMzYsImV4cCI6MjA5NjI0NzMzNn0.p3kYjoaAuBz9WCgOjf3EJTH_S2qJXxZasyrLnqjQxtw';
 
-    // 3. Initialize the Supabase Client globally using the capitalized library name
-    const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let supabase;
 
-    // 4. This function queries your database directly from the browser based on the selection
+    // Safety check to ensure the library loaded correctly before we run anything
+    try {
+        supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch (e) {
+        document.getElementById('status').className = 'status-message error';
+        document.getElementById('status').innerText = "Failed to load Supabase SDK script. Check your internet connection or script tags.";
+    }
+
     async function changeView(viewName) {
         const statusDiv = document.getElementById('status');
         const tableElement = document.getElementById('data-table');
         const tableHead = document.getElementById('table-head');
         const tableBody = document.getElementById('table-body');
 
-        // Reset current view state
         statusDiv.style.display = 'block';
         statusDiv.className = 'status-message';
         statusDiv.innerText = `Connecting directly to Supabase table: [${viewName}]...`;
@@ -186,7 +189,6 @@
         tableBody.innerHTML = '';
 
         try {
-            // Regular JavaScript requests data directly from your custom table names
             const { data, error } = await supabase
                 .from(viewName)
                 .select('*');
@@ -194,25 +196,22 @@
             if (error) throw error;
 
             if (!data || data.length === 0) {
-                statusDiv.innerText = `The table "${viewName}" is currently empty or has no rows.`;
+                statusDiv.innerText = `The table "${viewName}" was found, but it has no rows or data right now.`;
                 return;
             }
 
-            // Show table, hide status loader
             statusDiv.style.display = 'none';
             tableElement.style.display = 'table';
 
-            // Grab column headers automatically from the keys of the first item
             const columns = Object.keys(data[0]);
             const headerRow = document.createElement('tr');
             columns.forEach(col => {
                 const th = document.createElement('th');
-                th.innerText = col.replace('_', ' '); // Cleans up "product_name" to "product name"
+                th.innerText = col.replace('_', ' ');
                 headerRow.appendChild(th);
             });
             tableHead.appendChild(headerRow);
 
-            // Dynamically build data rows
             data.forEach(rowRecord => {
                 const tr = document.createElement('tr');
                 columns.forEach(col => {
@@ -224,16 +223,16 @@
             });
 
         } catch (err) {
+            // Enhanced visible error output to screen
             statusDiv.className = 'status-message error';
-            statusDiv.innerText = `Direct Database Error: ${err.message}`;
-            console.error(err);
+            statusDiv.innerText = `Direct Database Error: ${err.message || err.details || JSON.stringify(err)}`;
+            console.error("Full Error Object:", err);
         }
     }
 
-    // Run automatically on startup
-    window.onload = () => {
+    window.addEventListener('DOMContentLoaded', () => {
         changeView('inventory');
-    };
+    });
 </script>
 </body>
 </html>
